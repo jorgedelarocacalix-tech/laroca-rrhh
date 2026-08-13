@@ -586,7 +586,7 @@ function viewEmpleadosAdmin(){
       <td style="font-size:12px">${APPS_SUITE.filter(([k])=>e.accesos_apps&&e.accesos_apps[k]).map(([,l])=>l).join(', ')||'—'}</td>
       <td>${e.identidad_url?`<a href="${e.identidad_url}" target="_blank">Ver</a>`:'—'}</td>
       <td><span class="stamp ${e.activo?'aprobado':'rechazado'}">${e.activo?'activo':'inactivo'}</span></td>
-      <td><button class="link" data-editar-accesos="${e.id}">Editar accesos</button></td></tr>`).join('') || `<tr><td colspan="11" class="empty">Aún no hay asociados — crea el primero</td></tr>`}</tbody></table></div>`;
+      <td><button class="link" data-editar-empleado="${e.id}">Editar datos</button> · <button class="link" data-editar-accesos="${e.id}">Editar accesos</button></td></tr>`).join('') || `<tr><td colspan="11" class="empty">Aún no hay asociados — crea el primero</td></tr>`}</tbody></table></div>`;
 }
 
 function viewVacacionesAdmin(){
@@ -1000,6 +1000,42 @@ function leerAccesosAppsBuilder(prefix){
   return out;
 }
 
+function modalEditarEmpleado(emp){
+  openModal(`
+    <h3>Editar datos — ${emp.nombre}</h3>
+    <div class="field"><label>Nombre completo</label><input id="ee-nombre" value="${emp.nombre||''}"></div>
+    <div class="form-row">
+      <div class="field"><label>Puesto</label><input id="ee-puesto" value="${emp.puesto||''}"></div>
+      <div class="field"><label>Sucursal</label><select id="ee-sucursal">${SUCURSALES.map(s=>`<option ${emp.sucursal===s?'selected':''}>${s}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Salario base</label><input type="number" id="ee-salario" value="${emp.salario_base||0}"></div>
+      <div class="field"><label>Días vacación/año</label><input type="number" id="ee-dias" value="${emp.dias_vacaciones_anuales||10}"></div>
+    </div>
+    <div class="field">
+      <label>Documento de identidad</label>
+      ${emp.identidad_url ? `<div style="margin-bottom:8px;font-size:13px"><a href="${emp.identidad_url}" target="_blank">Ver documento actual</a></div>` : `<div style="margin-bottom:8px;font-size:13px;color:var(--slate)">Aún no tiene identidad subida</div>`}
+      <input type="file" id="ee-identidad" accept="image/*,.pdf">
+    </div>
+    <div class="row-end"><button class="link" id="ee-cancel">Cancelar</button><button class="btn gold sm" id="ee-save">Guardar cambios</button></div>`);
+  document.getElementById('ee-cancel').onclick = closeModal;
+  document.getElementById('ee-save').onclick = async () => {
+    const nombre = document.getElementById('ee-nombre').value.trim();
+    if(!nombre){ toast('El nombre no puede quedar vacío'); return; }
+    const file = document.getElementById('ee-identidad').files[0];
+    const identidadUrl = file ? await uploadDoc(file) : null;
+    const {error} = await sb.rpc('rrhh_admin_editar_empleado', {
+      p_admin_codigo: state.session.codigo, p_admin_pin: state.session.pin, p_empleado_id: emp.id,
+      p_nombre: nombre, p_puesto: document.getElementById('ee-puesto').value.trim(),
+      p_sucursal: document.getElementById('ee-sucursal').value,
+      p_salario_base: Number(document.getElementById('ee-salario').value||0),
+      p_dias_vacaciones_anuales: Number(document.getElementById('ee-dias').value||10),
+      p_identidad_url: identidadUrl
+    });
+    if(error){ toast('Error: '+error.message); return; }
+    closeModal(); toast('Datos actualizados'); state.empleados=null; await loadAdminEmpleados(); render();
+  };
+}
 function modalEditarAccesos(emp){
   openModal(`
     <h3>Accesos de ${emp.nombre}</h3>
@@ -1159,6 +1195,12 @@ function bindCapacitacionesEmpleado(){
 
 function bindEmpleadosAdmin(){
   document.getElementById('btn-nuevo-empleado').onclick = modalNuevoEmpleado;
+  document.querySelectorAll('[data-editar-empleado]').forEach(btn=>{
+    btn.onclick = () => {
+      const emp = (state.empleados||[]).find(e=>e.id===btn.getAttribute('data-editar-empleado'));
+      if(emp) modalEditarEmpleado(emp);
+    };
+  });
   document.querySelectorAll('[data-editar-accesos]').forEach(btn=>{
     btn.onclick = () => {
       const emp = (state.empleados||[]).find(e=>e.id===btn.getAttribute('data-editar-accesos'));
