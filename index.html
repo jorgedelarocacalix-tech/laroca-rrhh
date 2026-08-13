@@ -326,9 +326,9 @@ function viewResumen(){
     <div style="height:22px"></div>
     <div class="grid cols-2">
       <div class="card">
-        <h3 style="margin-top:0">Últimos pagos</h3>
-        ${e.pagos.slice(0,4).map(p=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--stone-line);font-size:14px">
-          <span>${p.periodo}</span><span class="mono" style="font-weight:600">${fmtL(p.total)}</span></div>`).join('') || '<div class="empty">Aún no hay pagos registrados</div>'}
+        <h3 style="margin-top:0">Bonificaciones</h3>
+        ${e.pagos.filter(p=>Number(p.bonos)>0).slice(0,4).map(p=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--stone-line);font-size:14px">
+          <span>${p.periodo}</span><span class="mono" style="font-weight:600">${fmtL(p.bonos)}</span></div>`).join('') || '<div class="empty">Sin bonificaciones registradas</div>'}
       </div>
       <div class="card">
         <h3 style="margin-top:0">Próximas / recientes vacaciones</h3>
@@ -481,7 +481,7 @@ function viewMemorandosEmpleado(){
 
 function viewPerfilEmpleado(){
   const e = state.expediente.empleado;
-  return `<h1 class="page-title">Mi perfil</h1><p class="page-sub">Puedes actualizar tu foto, nombre y documento de identidad</p>
+  return `<h1 class="page-title">Mi perfil</h1><p class="page-sub">Puedes actualizar tu foto, nombre, fecha de nacimiento y documento de identidad</p>
   <div class="card" style="max-width:480px">
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
       <div class="avatar-wrap" id="perfil-foto-wrap">${avatarHtml(e.nombre, e.foto_url, 'lg')}<span class="cam">📷</span></div>
@@ -491,6 +491,7 @@ function viewPerfilEmpleado(){
       </div>
     </div>
     <div class="field"><label>Nombre completo</label><input id="perfil-nombre" value="${e.nombre}"></div>
+    <div class="field"><label>Fecha de nacimiento</label><input type="date" id="perfil-nacimiento" value="${e.fecha_nacimiento||''}"></div>
     <div class="field">
       <label>Documento de identidad</label>
       ${e.identidad_url ? `<div style="margin-bottom:8px;font-size:13px"><a href="${e.identidad_url}" target="_blank">Ver documento actual</a></div>` : `<div style="margin-bottom:8px;font-size:13px;color:var(--slate)">Aún no has subido tu identidad</div>`}
@@ -1015,13 +1016,14 @@ function bindPerfilEmpleado(){
   };
   document.getElementById('btn-guardar-perfil').onclick = async () => {
     const nombre = document.getElementById('perfil-nombre').value.trim();
+    const nacimiento = document.getElementById('perfil-nacimiento').value || null;
     const identidadFile = document.getElementById('perfil-identidad-file').files[0];
     let fotoUrl = null, identidadUrl = null;
     if(perfilFotoPendiente){ toast('Subiendo foto...'); fotoUrl = await uploadDoc(perfilFotoPendiente); }
     if(identidadFile){ toast('Subiendo identidad...'); identidadUrl = await uploadDoc(identidadFile); }
     const {error} = await sb.rpc('rrhh_actualizar_perfil', {
       p_empleado_id: state.session.empleado_id, p_pin: state.session.pin,
-      p_nombre: nombre, p_foto_url: fotoUrl, p_identidad_url: identidadUrl });
+      p_nombre: nombre, p_foto_url: fotoUrl, p_identidad_url: identidadUrl, p_fecha_nacimiento: nacimiento });
     if(error){ toast('Error: '+error.message); return; }
     state.session.nombre = nombre || state.session.nombre;
     if(fotoUrl) state.session.foto_url = fotoUrl;
