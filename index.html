@@ -269,8 +269,6 @@ function navItemsFor(rol){
     ['permisos','Permisos'],
     ['adelantos','Adelantos de pago'],
     ['prestamos','Préstamos'],
-    ['asistencias','Mis asistencias'],
-    ['pagos','Mis pagos'],
     ['incapacidades','Incapacidades'],
     ['llamadas','Llamadas de atención'],
     ['memorandos','Memorándums'],
@@ -380,9 +378,38 @@ function viewPagosEmpleado(){
 
 function viewIncapacidadesEmpleado(){
   const e = state.expediente;
-  return `<h1 class="page-title">Incapacidades</h1><p class="page-sub">Registradas por RRHH</p>
-    <div class="card"><table><thead><tr><th>Tipo</th><th>Desde</th><th>Hasta</th><th>Días</th><th>Documento</th></tr></thead>
-    <tbody>${e.incapacidades.map(i=>`<tr><td style="text-transform:capitalize">${i.tipo}</td><td>${fmtDate(i.fecha_inicio)}</td><td>${fmtDate(i.fecha_fin)}</td><td>${i.dias}</td><td>${i.documento_url?`<a href="${i.documento_url}" target="_blank">Ver documento</a>`:'—'}</td></tr>`).join('') || `<tr><td colspan="5" class="empty">Sin incapacidades registradas</td></tr>`}</tbody></table></div>`;
+  return `<div style="display:flex;justify-content:space-between;align-items:center">
+    <div><h1 class="page-title">Incapacidades</h1><p class="page-sub">Reporta una enfermedad o adjunta tu constancia médica</p></div>
+    <button class="btn gold sm" id="btn-nueva-incapacidad">+ Nueva incapacidad</button></div>
+    <div class="card"><table><thead><tr><th>Tipo</th><th>Desde</th><th>Hasta</th><th>Días</th><th>Comentario</th><th>Documento</th><th>Estado</th></tr></thead>
+    <tbody>${e.incapacidades.map(i=>`<tr><td style="text-transform:capitalize">${i.tipo}</td><td>${fmtDate(i.fecha_inicio)}</td><td>${fmtDate(i.fecha_fin)}</td><td>${i.dias}</td><td>${i.notas||'—'}</td><td>${i.documento_url?`<a href="${i.documento_url}" target="_blank">Ver documento</a>`:'—'}</td><td><span class="stamp ${i.estado}">${i.estado}</span>${i.estado==='rechazado'&&i.dias_descuento>0?`<div style="font-size:11px;color:var(--brick);margin-top:2px">-${i.dias_descuento}d próxima quincena</div>`:''}</td></tr>`).join('') || `<tr><td colspan="7" class="empty">Sin incapacidades registradas</td></tr>`}</tbody></table></div>`;
+}
+function modalNuevaIncapacidad(){
+  openModal(`
+    <h3>Reportar incapacidad</h3>
+    <div class="form-row">
+      <div class="field"><label>Tipo</label><select id="mi-tipo"><option value="ihss">IHSS</option><option value="comun">Enfermedad común</option><option value="maternidad">Maternidad</option><option value="laboral">Riesgo laboral</option><option value="otro">Otro</option></select></div>
+      <div></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Desde</label><input type="date" id="mi-inicio"></div>
+      <div class="field"><label>Hasta</label><input type="date" id="mi-fin"></div>
+    </div>
+    <div class="field"><label>Comentario sobre la enfermedad</label><textarea id="mi-notas" rows="3" placeholder="Describe brevemente qué tenés"></textarea></div>
+    <div class="field"><label>Documento / constancia médica (opcional)</label><input type="file" id="mi-file" accept="image/*,.pdf"></div>
+    <div class="row-end"><button class="link" id="mi-cancel">Cancelar</button><button class="btn gold sm" id="mi-save">Enviar</button></div>`);
+  document.getElementById('mi-cancel').onclick = closeModal;
+  document.getElementById('mi-save').onclick = async () => {
+    const tipo = document.getElementById('mi-tipo').value;
+    const inicio = document.getElementById('mi-inicio').value, fin = document.getElementById('mi-fin').value;
+    const notas = document.getElementById('mi-notas').value.trim();
+    if(!inicio || !fin){ toast('Completa fecha inicio y fin'); return; }
+    const file = document.getElementById('mi-file').files[0];
+    const url = file ? await uploadDoc(file) : null;
+    const {error} = await sb.rpc('rrhh_crear_incapacidad', {p_empleado_id: state.session.empleado_id, p_pin: state.session.pin, p_tipo: tipo, p_fecha_inicio: inicio, p_fecha_fin: fin, p_documento_url: url, p_notas: notas});
+    if(error){ toast('Error: '+error.message); return; }
+    closeModal(); toast('Incapacidad enviada — RRHH la va a revisar'); await loadExpediente(); render();
+  };
 }
 
 function viewLlamadasEmpleado(){
@@ -508,7 +535,7 @@ function viewDashboardAdmin(){
   return `<h1 class="page-title">Panel general</h1><p class="page-sub">Vista consolidada de RRHH</p>
   <div class="grid cols-3">
     <div class="card stat-card"><div class="label">Nómina mes actual</div><div class="value gold">${fmtL(d.nomina_mes_actual)}</div></div>
-    <div class="card stat-card"><div class="label">Solicitudes pendientes</div><div class="value">${d.vacaciones_pendientes.length + d.permisos_pendientes.length + d.adelantos_pendientes.length + d.prestamos_pendientes.length}</div></div>
+    <div class="card stat-card"><div class="label">Solicitudes pendientes</div><div class="value">${d.vacaciones_pendientes.length + d.permisos_pendientes.length + d.adelantos_pendientes.length + d.prestamos_pendientes.length + d.incapacidades_pendientes.length}</div></div>
     <div class="card stat-card"><div class="label">Próximos cumpleaños/aniversarios</div><div class="value">${d.cumpleanos_proximos.length + d.aniversarios_proximos.length}</div></div>
   </div>
   <div style="height:22px"></div>
@@ -578,7 +605,15 @@ function viewAsistenciasAdmin(){
 }
 
 function viewPagosAdmin(){
+  const desc = (state.adminData && state.adminData.descuentos_pendientes) || [];
   return `<h1 class="page-title">Registrar pago / bono</h1><p class="page-sub">Se suma al historial y al promedio del asociado</p>
+  ${desc.length ? `<div class="card" style="max-width:560px;border:1.5px solid var(--brick);margin-bottom:16px">
+    <h3 style="margin-top:0;color:var(--brick)">⚠️ Descuentos pendientes por incapacidad rechazada</h3>
+    ${desc.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--stone-line);font-size:14px">
+      <span>${x.empleado} <span style="color:var(--slate);font-size:12px">${x.codigo||''}</span> — ${x.dias_descuento} día(s), incapacidad del ${fmtDate(x.fecha_inicio)}</span>
+      <button class="link" data-marcar-descuento="${x.id}">Marcar aplicado</button>
+    </div>`).join('')}
+  </div>` : ''}
   <div class="card" style="max-width:560px">
     <div class="field"><label>Asociado</label><select id="pf-emp">${empSelectOptions()}</select></div>
     <div class="form-row">
@@ -694,8 +729,17 @@ function renderPreguntasBuilder(){
 function viewSolicitudesAdmin(){
   const d = state.adminData;
   if(!d) return '<div class="empty">Cargando...</div>';
-  return `<h1 class="page-title">Solicitudes pendientes</h1><p class="page-sub">Aprueba o rechaza vacaciones, permisos, adelantos y préstamos</p>
+  return `<h1 class="page-title">Solicitudes pendientes</h1><p class="page-sub">Aprueba o rechaza vacaciones, permisos, adelantos, préstamos e incapacidades</p>
   <div class="grid cols-2">
+    <div class="card"><h3 style="margin-top:0">Incapacidades</h3>
+      ${d.incapacidades_pendientes.map(i=>`<div style="padding:10px 0;border-bottom:1px solid var(--stone-line)">
+        <div style="font-size:14px;font-weight:600">${i.empleado} <span style="font-weight:400;color:var(--slate);font-size:12px">${i.codigo||''}</span></div>
+        <div style="font-size:13px;color:var(--slate);margin:2px 0 4px;text-transform:capitalize">${i.tipo} · ${fmtDate(i.fecha_inicio)} → ${fmtDate(i.fecha_fin)} (${i.dias} días)</div>
+        ${i.notas?`<div style="font-size:13px;margin-bottom:6px">"${i.notas}"</div>`:''}
+        ${i.documento_url?`<div style="margin-bottom:6px"><a href="${i.documento_url}" target="_blank" style="font-size:13px">Ver documento</a></div>`:''}
+        <button class="btn sm" style="background:var(--green);color:#fff" data-resolve="incapacidades|${i.id}|aprobado">Aprobar</button>
+        <button class="btn sm" style="background:var(--brick);color:#fff" data-resolve="incapacidades|${i.id}|rechazado">Rechazar (-2d quincena)</button>
+      </div>`).join('') || '<div class="empty">Sin solicitudes pendientes</div>'}</div>
     <div class="card"><h3 style="margin-top:0">Vacaciones</h3>
       ${d.vacaciones_pendientes.map(v=>`<div style="padding:10px 0;border-bottom:1px solid var(--stone-line)">
         <div style="font-size:14px;font-weight:600">${v.empleado}</div>
@@ -969,7 +1013,7 @@ async function render(){
     else if(state.view==='empleados'){ if(!state.empleados) await loadAdminEmpleados(); renderShell(viewEmpleadosAdmin()); bindEmpleadosAdmin(); }
     else if(state.view==='vacaciones-admin'){ await loadVacacionesAdmin(); renderShell(viewVacacionesAdmin()); bindVacacionesAdmin(); }
     else if(state.view==='asistencias-admin'){ if(!state.empleados) await loadAdminEmpleados(); renderShell(viewAsistenciasAdmin()); bindAsistenciasAdmin(); }
-    else if(state.view==='pagos-admin'){ if(!state.empleados) await loadAdminEmpleados(); renderShell(viewPagosAdmin()); bindPagosAdmin(); }
+    else if(state.view==='pagos-admin'){ if(!state.empleados) await loadAdminEmpleados(); if(!state.adminData) await loadAdminDashboard(); renderShell(viewPagosAdmin()); bindPagosAdmin(); }
     else if(state.view==='incapacidades-admin'){ if(!state.empleados) await loadAdminEmpleados(); renderShell(viewIncapacidadesAdmin()); bindIncapacidadesAdmin(); }
     else if(state.view==='llamadas-admin'){ if(!state.empleados) await loadAdminEmpleados(); renderShell(viewLlamadasAdmin()); bindLlamadasAdmin(); }
     else if(state.view==='memos-admin'){ if(!state.empleados) await loadAdminEmpleados(); if(!state.adminData) await loadAdminDashboard(); renderShell(viewMemosAdmin()); bindMemosAdmin(); }
@@ -988,7 +1032,7 @@ async function render(){
   else if(state.view==='prestamos'){ renderShell(viewPrestamosEmpleado()); document.getElementById('btn-solicitar-prestamo').onclick = modalSolicitarPrestamo; bindChatButtons(); }
   else if(state.view==='asistencias') renderShell(viewAsistenciasEmpleado());
   else if(state.view==='pagos') renderShell(viewPagosEmpleado());
-  else if(state.view==='incapacidades') renderShell(viewIncapacidadesEmpleado());
+  else if(state.view==='incapacidades'){ renderShell(viewIncapacidadesEmpleado()); document.getElementById('btn-nueva-incapacidad').onclick = modalNuevaIncapacidad; }
   else if(state.view==='llamadas') renderShell(viewLlamadasEmpleado());
   else if(state.view==='memorandos') renderShell(viewMemorandosEmpleado());
   else if(state.view==='capacitaciones'){ if(!state.capacitaciones) await loadCapacitacionesEmpleado(); renderShell(viewCapacitacionesEmpleado()); bindCapacitacionesEmpleado(); }
@@ -1128,6 +1172,14 @@ function bindPagosAdmin(){
     if(error){ toast('Error: '+error.message); return; }
     toast('Pago registrado');
   };
+  document.querySelectorAll('[data-marcar-descuento]').forEach(btn=>{
+    btn.onclick = async () => {
+      const {error} = await sb.rpc('rrhh_admin_marcar_descuento_aplicado', { p_admin_codigo: state.session.codigo, p_admin_pin: state.session.pin, p_id: btn.getAttribute('data-marcar-descuento') });
+      if(error){ toast('Error: '+error.message); return; }
+      toast('Descuento marcado como aplicado');
+      state.adminData = null; await loadAdminDashboard(); render();
+    };
+  });
 }
 function bindIncapacidadesAdmin(){
   document.getElementById('btn-guardar-incapacidad').onclick = async () => {
