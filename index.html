@@ -156,6 +156,13 @@ function logout(){ sessionStorage.removeItem('rrhh_session'); state.session=null
 function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),3200); }
 function fmtL(n){ return 'L ' + Number(n||0).toLocaleString('es-HN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtDate(d){ if(!d) return '—'; const dt=new Date(d+'T00:00:00'); return dt.toLocaleDateString('es-HN',{day:'2-digit',month:'short',year:'numeric'}); }
+function rangoFechasValido(inicio, fin){
+  if(!inicio || !fin) return 'Completa fecha inicio y fin';
+  const anioInicio = Number(inicio.slice(0,4)), anioFin = Number(fin.slice(0,4));
+  if(anioInicio < 2000 || anioInicio > 2100 || anioFin < 2000 || anioFin > 2100) return 'Revisa el año de las fechas, se ve incorrecto';
+  if(new Date(fin+'T00:00:00') < new Date(inicio+'T00:00:00')) return 'La fecha "hasta" no puede ser anterior a "desde"';
+  return null;
+}
 function initials(nombre){ return (nombre||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase(); }
 function avatarHtml(nombre, fotoUrl, size){
   const cls = 'avatar-'+size;
@@ -403,7 +410,8 @@ function modalNuevaIncapacidad(){
     const tipo = document.getElementById('mi-tipo').value;
     const inicio = document.getElementById('mi-inicio').value, fin = document.getElementById('mi-fin').value;
     const notas = document.getElementById('mi-notas').value.trim();
-    if(!inicio || !fin){ toast('Completa fecha inicio y fin'); return; }
+    const errFecha = rangoFechasValido(inicio, fin);
+    if(errFecha){ toast(errFecha); return; }
     const file = document.getElementById('mi-file').files[0];
     const url = file ? await uploadDoc(file) : null;
     const {error} = await sb.rpc('rrhh_crear_incapacidad', {p_empleado_id: state.session.empleado_id, p_pin: state.session.pin, p_tipo: tipo, p_fecha_inicio: inicio, p_fecha_fin: fin, p_documento_url: url, p_notas: notas});
@@ -801,7 +809,9 @@ function modalSolicitarVacacion(){
   document.getElementById('mv-save').onclick = async () => {
     const inicio = document.getElementById('mv-inicio').value, fin = document.getElementById('mv-fin').value;
     const dias = document.getElementById('mv-dias').value, motivo = document.getElementById('mv-motivo').value;
-    if(!inicio || !fin || !dias){ toast('Completa fecha inicio, fin y días'); return; }
+    if(!dias){ toast('Indica los días solicitados'); return; }
+    const errFecha = rangoFechasValido(inicio, fin);
+    if(errFecha){ toast(errFecha); return; }
     const {error} = await sb.rpc('rrhh_solicitar_vacacion', {p_empleado_id: state.session.empleado_id, p_pin: state.session.pin, p_fecha_inicio: inicio, p_fecha_fin: fin, p_dias: Number(dias), p_motivo: motivo});
     if(error){ toast('Error: '+error.message); return; }
     closeModal(); toast('Solicitud enviada'); await loadExpediente(); render();
@@ -1186,7 +1196,8 @@ function bindIncapacidadesAdmin(){
     const emp = document.getElementById('if-emp').value;
     if(!emp){ toast('No hay empleados registrados aún'); return; }
     const inicio = document.getElementById('if-inicio').value, fin = document.getElementById('if-fin').value;
-    if(!inicio || !fin){ toast('Completa las fechas'); return; }
+    const errFecha = rangoFechasValido(inicio, fin);
+    if(errFecha){ toast(errFecha); return; }
     const file = document.getElementById('if-file').files[0];
     const url = file ? await uploadDoc(file) : null;
     const {error} = await sb.rpc('rrhh_admin_crear_incapacidad', {
