@@ -141,6 +141,7 @@ let state = {
   expediente: null,
   adminData: null,
   empleados: null,
+  vacacionesAdmin: null,
   loading: false,
   capacitaciones: null,
   capacitacionesAdmin: null,
@@ -185,8 +186,8 @@ function renderLogin(){
   <div class="login-wrap">
     <div class="login-card">
       <div class="login-brand"><span class="mark"></span><span class="login-title">La Roca · RRHH</span></div>
-      <p class="login-sub">Portal de empleados · Corporación La Roca</p>
-      <div class="field"><label>Código de empleado</label><input id="in-codigo" placeholder="ej. R1-014" autocomplete="off"></div>
+      <p class="login-sub">Portal de asociados · Corporación La Roca</p>
+      <div class="field"><label>Código de asociado</label><input id="in-codigo" placeholder="ej. R1-014" autocomplete="off"></div>
       <div class="field"><label>PIN</label><input id="in-pin" type="password" placeholder="••••" autocomplete="off"></div>
       <button class="btn gold" id="btn-login">Entrar</button>
       <div class="err" id="login-err"></div>
@@ -226,6 +227,12 @@ async function loadAdminDashboard(){
   if(error){ toast('Error: '+error.message); return; }
   state.adminData = data;
 }
+async function loadVacacionesAdmin(){
+  const {session} = state;
+  const {data, error} = await sb.rpc('rrhh_admin_listar_vacaciones', {p_admin_codigo: session.codigo, p_admin_pin: session.pin});
+  if(error){ toast('Error: '+error.message); return; }
+  state.vacacionesAdmin = data;
+}
 async function loadCapacitacionesEmpleado(){
   const {session} = state;
   const {data, error} = await sb.rpc('rrhh_listar_capacitaciones', {p_empleado_id: session.empleado_id, p_pin: session.pin});
@@ -244,7 +251,8 @@ function navItemsFor(rol){
   if(rol==='admin'){
     return [
       ['dashboard','Panel general'],
-      ['empleados','Empleados'],
+      ['empleados','Asociados'],
+      ['vacaciones-admin','Vacaciones'],
       ['asistencias-admin','Asistencias'],
       ['pagos-admin','Pagos y bonos'],
       ['incapacidades-admin','Incapacidades'],
@@ -524,8 +532,8 @@ function viewDashboardAdmin(){
 function viewEmpleadosAdmin(){
   const list = state.empleados || [];
   return `<div style="display:flex;justify-content:space-between;align-items:center">
-    <div><h1 class="page-title">Empleados</h1><p class="page-sub">${list.length} registrados</p></div>
-    <button class="btn gold sm" id="btn-nuevo-empleado">+ Nuevo empleado</button></div>
+    <div><h1 class="page-title">Asociados</h1><p class="page-sub">${list.length} registrados</p></div>
+    <button class="btn gold sm" id="btn-nuevo-empleado">+ Nuevo asociado</button></div>
     <div class="card"><table><thead><tr><th>Foto</th><th>Código</th><th>Nombre</th><th>Puesto</th><th>Sucursal</th><th>Salario base</th><th>Rol</th><th>Accesos</th><th>Identidad</th><th>Estado</th><th></th></tr></thead>
     <tbody>${list.map(e=>`<tr>
       <td><div class="avatar-wrap" data-foto-emp="${e.id}">${avatarHtml(e.nombre, e.foto_url, 'sm')}<span class="cam">📷</span></div></td>
@@ -533,7 +541,19 @@ function viewEmpleadosAdmin(){
       <td style="font-size:12px">${APPS_SUITE.filter(([k])=>e.accesos_apps&&e.accesos_apps[k]).map(([,l])=>l).join(', ')||'—'}</td>
       <td>${e.identidad_url?`<a href="${e.identidad_url}" target="_blank">Ver</a>`:'—'}</td>
       <td><span class="stamp ${e.activo?'aprobado':'rechazado'}">${e.activo?'activo':'inactivo'}</span></td>
-      <td><button class="link" data-editar-accesos="${e.id}">Editar accesos</button></td></tr>`).join('') || `<tr><td colspan="11" class="empty">Aún no hay empleados — crea el primero</td></tr>`}</tbody></table></div>`;
+      <td><button class="link" data-editar-accesos="${e.id}">Editar accesos</button></td></tr>`).join('') || `<tr><td colspan="11" class="empty">Aún no hay asociados — crea el primero</td></tr>`}</tbody></table></div>`;
+}
+
+function viewVacacionesAdmin(){
+  const list = state.vacacionesAdmin || [];
+  return `<h1 class="page-title">Vacaciones</h1><p class="page-sub">Historial de todas las solicitudes de vacaciones</p>
+    <div class="card"><table><thead><tr><th>Asociado</th><th>Desde</th><th>Hasta</th><th>Días</th><th>Motivo</th><th>Estado</th><th>Aprobado por</th><th>Documento</th></tr></thead>
+    <tbody>${list.map(v=>`<tr>
+      <td>${v.empleado}<div style="font-size:11px;color:var(--slate)">${v.codigo||''}</div></td>
+      <td>${fmtDate(v.fecha_inicio)}</td><td>${fmtDate(v.fecha_fin)}</td><td>${v.dias}</td><td>${v.motivo||'—'}</td>
+      <td><span class="stamp ${v.estado}">${v.estado}</span></td><td>${v.aprobado_por||'—'}</td>
+      <td>${v.estado==='aprobado' ? `<button class="btn-chat" data-hoja="${v.id}">${v.documento_url?'📄 Ver / actualizar':'📄 Subir hoja'}</button>` : '—'}</td>
+    </tr>`).join('') || `<tr><td colspan="8" class="empty">Aún no hay solicitudes de vacaciones</td></tr>`}</tbody></table></div>`;
 }
 
 function empSelectOptions(){
@@ -541,9 +561,9 @@ function empSelectOptions(){
 }
 
 function viewAsistenciasAdmin(){
-  return `<h1 class="page-title">Registrar asistencia</h1><p class="page-sub">Marca la asistencia diaria de un empleado</p>
+  return `<h1 class="page-title">Registrar asistencia</h1><p class="page-sub">Marca la asistencia diaria de un asociado</p>
   <div class="card" style="max-width:520px">
-    <div class="field"><label>Empleado</label><select id="af-emp">${empSelectOptions()}</select></div>
+    <div class="field"><label>Asociado</label><select id="af-emp">${empSelectOptions()}</select></div>
     <div class="form-row">
       <div class="field"><label>Fecha</label><input type="date" id="af-fecha" value="${new Date().toISOString().slice(0,10)}"></div>
       <div class="field"><label>Estado</label><select id="af-estado"><option value="presente">Presente</option><option value="tarde">Tarde</option><option value="ausente">Ausente</option><option value="permiso">Permiso</option><option value="incapacidad">Incapacidad</option></select></div>
@@ -557,9 +577,9 @@ function viewAsistenciasAdmin(){
 }
 
 function viewPagosAdmin(){
-  return `<h1 class="page-title">Registrar pago / bono</h1><p class="page-sub">Se suma al historial y al promedio del empleado</p>
+  return `<h1 class="page-title">Registrar pago / bono</h1><p class="page-sub">Se suma al historial y al promedio del asociado</p>
   <div class="card" style="max-width:560px">
-    <div class="field"><label>Empleado</label><select id="pf-emp">${empSelectOptions()}</select></div>
+    <div class="field"><label>Asociado</label><select id="pf-emp">${empSelectOptions()}</select></div>
     <div class="form-row">
       <div class="field"><label>Periodo (AAAA-MM)</label><input id="pf-periodo" placeholder="2026-08" value="${new Date().toISOString().slice(0,7)}"></div>
       <div class="field"><label>Fecha de pago</label><input type="date" id="pf-fecha" value="${new Date().toISOString().slice(0,10)}"></div>
@@ -579,7 +599,7 @@ function viewPagosAdmin(){
 function viewIncapacidadesAdmin(){
   return `<h1 class="page-title">Subir incapacidad</h1><p class="page-sub">Adjunta el documento del IHSS o médico</p>
   <div class="card" style="max-width:520px">
-    <div class="field"><label>Empleado</label><select id="if-emp">${empSelectOptions()}</select></div>
+    <div class="field"><label>Asociado</label><select id="if-emp">${empSelectOptions()}</select></div>
     <div class="form-row">
       <div class="field"><label>Tipo</label><select id="if-tipo"><option value="ihss">IHSS</option><option value="comun">Enfermedad común</option><option value="maternidad">Maternidad</option><option value="laboral">Riesgo laboral</option><option value="otro">Otro</option></select></div>
       <div></div>
@@ -597,7 +617,7 @@ function viewIncapacidadesAdmin(){
 function viewLlamadasAdmin(){
   return `<h1 class="page-title">Registrar llamada de atención</h1><p class="page-sub">Verbal o por escrito, con documento de respaldo</p>
   <div class="card" style="max-width:520px">
-    <div class="field"><label>Empleado</label><select id="lf-emp">${empSelectOptions()}</select></div>
+    <div class="field"><label>Asociado</label><select id="lf-emp">${empSelectOptions()}</select></div>
     <div class="form-row">
       <div class="field"><label>Tipo</label><select id="lf-tipo"><option value="verbal">Verbal</option><option value="escrita">Escrita</option></select></div>
       <div class="field"><label>Fecha</label><input type="date" id="lf-fecha" value="${new Date().toISOString().slice(0,10)}"></div>
@@ -610,7 +630,7 @@ function viewLlamadasAdmin(){
 
 function viewMemosAdmin(){
   const d = state.adminData;
-  return `<h1 class="page-title">Memorándums</h1><p class="page-sub">Envía un comunicado a un empleado o a todo el personal</p>
+  return `<h1 class="page-title">Memorándums</h1><p class="page-sub">Envía un comunicado a un asociado o a todo el personal</p>
   <div class="card" style="max-width:560px">
     <div class="field"><label>Destinatario</label><select id="mf-emp"><option value="">— Todo el personal —</option>${empSelectOptions()}</select></div>
     <div class="field"><label>Título</label><input id="mf-titulo" placeholder="ej. Cambio de horario / Reconocimiento"></div>
@@ -651,7 +671,7 @@ function viewCapacitacionesAdmin(){
         <span style="font-size:13px;color:var(--slate)">${c.completados}/${c.total_empleados} completados</span>
       </div>
       <p style="font-size:13px;color:var(--slate);margin:6px 0 10px">${c.descripcion||''} · ${c.num_preguntas} preguntas · mínimo ${c.puntaje_minimo}%</p>
-      <table><thead><tr><th>Empleado</th><th>Video</th><th>Intentos</th><th>Mejor puntaje</th><th>Estado</th></tr></thead>
+      <table><thead><tr><th>Asociado</th><th>Video</th><th>Intentos</th><th>Mejor puntaje</th><th>Estado</th></tr></thead>
       <tbody>${c.detalle.map(d=>`<tr><td>${d.empleado}</td><td>${d.video_visto?'✓':'—'}</td><td>${d.intentos}</td><td>${d.mejor_puntaje}%</td><td><span class="stamp ${d.aprobado?'aprobado':'pendiente'}">${d.aprobado?'aprobado':'pendiente'}</span></td></tr>`).join('')}</tbody></table>
     </div>`).join('') || '<div class="card empty">Aún no has creado capacitaciones</div>'}</div>`;
 }
@@ -820,7 +840,7 @@ async function modalChatSolicitud(tabla, solicitudId){
       <div style="margin-bottom:10px;text-align:${m.autor_tipo==='admin'?'right':'left'}">
         <div style="display:inline-block;max-width:80%;padding:8px 12px;border-radius:8px;font-size:13px;
           background:${m.autor_tipo==='admin'?'var(--charcoal)':'#fff'};color:${m.autor_tipo==='admin'?'#fff':'var(--charcoal)'};border:1px solid var(--stone-line)">
-          <div style="font-weight:700;font-size:11px;margin-bottom:2px;opacity:.8">${m.autor_nombre} · ${m.autor_tipo==='admin'?'RRHH':'empleado'}</div>
+          <div style="font-weight:700;font-size:11px;margin-bottom:2px;opacity:.8">${m.autor_nombre} · ${m.autor_tipo==='admin'?'RRHH':'asociado'}</div>
           ${m.mensaje}
         </div>
       </div>`).join('') || '<div class="empty" style="padding:8px">Sin comentarios todavía</div>';
@@ -856,7 +876,7 @@ function bindChatButtons(){
 
 function modalNuevoEmpleado(){
   openModal(`
-    <h3>Nuevo empleado</h3>
+    <h3>Nuevo asociado</h3>
     <div class="form-row">
       <div class="field"><label>Código</label><input id="ne-codigo" placeholder="R1-014"></div>
       <div class="field"><label>PIN inicial</label><input id="ne-pin" placeholder="4 dígitos"></div>
@@ -874,9 +894,9 @@ function modalNuevoEmpleado(){
       <div class="field"><label>Salario base</label><input type="number" id="ne-salario"></div>
       <div class="field"><label>Días vacación/año</label><input type="number" id="ne-dias" value="10"></div>
     </div>
-    <div class="field"><label>Rol</label><select id="ne-rol"><option value="empleado">Empleado</option><option value="admin">Admin / RRHH</option></select></div>
+    <div class="field"><label>Rol</label><select id="ne-rol"><option value="empleado">Asociado</option><option value="admin">Admin / RRHH</option></select></div>
     <div class="field">${accesosAppsBuilder('ne-acc', {rrhh:true,crm:true,cobranza:true,cierre:false,arqueos:false})}</div>
-    <div class="row-end"><button class="link" id="ne-cancel">Cancelar</button><button class="btn gold sm" id="ne-save">Crear empleado</button></div>`);
+    <div class="row-end"><button class="link" id="ne-cancel">Cancelar</button><button class="btn gold sm" id="ne-save">Crear asociado</button></div>`);
   document.getElementById('ne-cancel').onclick = closeModal;
   document.getElementById('ne-save').onclick = async () => {
     const codigo = document.getElementById('ne-codigo').value.trim();
@@ -893,7 +913,7 @@ function modalNuevoEmpleado(){
       p_accesos_apps: leerAccesosAppsBuilder('ne-acc')
     });
     if(error){ toast('Error: '+error.message); return; }
-    closeModal(); toast('Empleado creado'); await loadAdminEmpleados(); render();
+    closeModal(); toast('Asociado creado'); await loadAdminEmpleados(); render();
   };
 }
 
@@ -946,6 +966,7 @@ async function render(){
   if(rol === 'admin'){
     if(state.view==='dashboard'){ if(!state.adminData) await loadAdminDashboard(); renderShell(viewDashboardAdmin()); }
     else if(state.view==='empleados'){ if(!state.empleados) await loadAdminEmpleados(); renderShell(viewEmpleadosAdmin()); bindEmpleadosAdmin(); }
+    else if(state.view==='vacaciones-admin'){ await loadVacacionesAdmin(); renderShell(viewVacacionesAdmin()); bindVacacionesAdmin(); }
     else if(state.view==='asistencias-admin'){ if(!state.empleados) await loadAdminEmpleados(); renderShell(viewAsistenciasAdmin()); bindAsistenciasAdmin(); }
     else if(state.view==='pagos-admin'){ if(!state.empleados) await loadAdminEmpleados(); renderShell(viewPagosAdmin()); bindPagosAdmin(); }
     else if(state.view==='incapacidades-admin'){ if(!state.empleados) await loadAdminEmpleados(); renderShell(viewIncapacidadesAdmin()); bindIncapacidadesAdmin(); }
@@ -1209,14 +1230,14 @@ function modalHojaVacacion(vac){
       <div style="font-weight:700;font-size:15px">Corporación La Roca</div>
       <div style="color:var(--slate)">Hoja de Vacación Concedida</div>
     </div>
-    <div><b>Empleado:</b> ${vac.empleado} (${vac.codigo||'—'})</div>
+    <div><b>Asociado:</b> ${vac.empleado} (${vac.codigo||'—'})</div>
     <div><b>Puesto:</b> ${vac.puesto||'—'} · <b>Sucursal:</b> ${vac.sucursal||'—'}</div>
     <div><b>Período:</b> ${fmtDate(vac.fecha_inicio)} → ${fmtDate(vac.fecha_fin)} (${vac.dias} días)</div>
     <div><b>Motivo:</b> ${vac.motivo||'—'}</div>
-    <div><b>Aprobado por:</b> ${state.session.nombre}</div>
+    <div><b>Aprobado por:</b> ${vac.aprobado_por || state.session.nombre}</div>
     <div><b>Fecha de emisión:</b> ${fmtDate(new Date().toISOString().slice(0,10))}</div>
     <div style="display:flex;justify-content:space-between;margin-top:50px">
-      <div style="text-align:center;width:45%"><div style="border-top:1px solid #333;padding-top:4px">Firma Empleado</div></div>
+      <div style="text-align:center;width:45%"><div style="border-top:1px solid #333;padding-top:4px">Firma Asociado</div></div>
       <div style="text-align:center;width:45%"><div style="border-top:1px solid #333;padding-top:4px">Firma RRHH</div></div>
     </div>
   </div>
@@ -1239,7 +1260,17 @@ function modalHojaVacacion(vac){
     const {error} = await sb.rpc('rrhh_admin_guardar_documento_vacacion', { p_admin_codigo: state.session.codigo, p_admin_pin: state.session.pin, p_id: vac.id, p_documento_url: url });
     if(error){ toast('Error: '+error.message); return; }
     toast('Documento guardado'); closeModal();
+    state.vacacionesAdmin = null;
+    if(state.view==='vacaciones-admin'){ await loadVacacionesAdmin(); render(); }
   };
+}
+function bindVacacionesAdmin(){
+  document.querySelectorAll('[data-hoja]').forEach(btn=>{
+    btn.onclick = () => {
+      const vac = (state.vacacionesAdmin||[]).find(v=>v.id===btn.getAttribute('data-hoja'));
+      if(vac) modalHojaVacacion(vac);
+    };
+  });
 }
 function bindSolicitudesAdmin(){
   bindChatButtons();
@@ -1250,6 +1281,7 @@ function bindSolicitudesAdmin(){
       const {error} = await sb.rpc('rrhh_admin_resolver_solicitud', { p_admin_codigo: state.session.codigo, p_admin_pin: state.session.pin, p_tabla: tabla, p_id: id, p_estado: estado });
       if(error){ toast('Error: '+error.message); return; }
       toast(estado==='aprobado' ? 'Solicitud aprobada' : 'Solicitud rechazada');
+      if(tabla==='vacaciones') state.vacacionesAdmin = null;
       await loadAdminDashboard(); render();
       if(tabla==='vacaciones' && estado==='aprobado' && vacRef) modalHojaVacacion(vacRef);
     };
