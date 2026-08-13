@@ -1279,7 +1279,7 @@ function bindCapacitacionesAdmin(){
       p_admin_codigo: state.session.codigo, p_admin_pin: state.session.pin,
       p_titulo: titulo, p_descripcion: document.getElementById('cap-desc').value,
       p_video_url: video, p_duracion_min: Number(document.getElementById('cap-duracion').value||0) || null,
-      p_preguntas: JSON.stringify(state.nuevasPreguntas), p_puntaje_minimo: Number(document.getElementById('cap-minimo').value||70)
+      p_preguntas: state.nuevasPreguntas, p_puntaje_minimo: Number(document.getElementById('cap-minimo').value||70)
     });
     if(error){ toast('Error: '+error.message); return; }
     toast('Capacitación publicada');
