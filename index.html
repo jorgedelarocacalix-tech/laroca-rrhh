@@ -339,7 +339,7 @@ function viewVacaciones(){
     </div>
     <div class="card">
       <table><thead><tr><th>Desde</th><th>Hasta</th><th>Días</th><th>Motivo</th><th>Estado</th><th></th></tr></thead>
-      <tbody>${e.vacaciones.map(v=>`<tr><td>${fmtDate(v.fecha_inicio)}</td><td>${fmtDate(v.fecha_fin)}</td><td>${v.dias_solicitados}</td><td>${v.motivo||'—'}</td><td><span class="stamp ${v.estado}">${v.estado}</span></td><td><button class="btn-chat" data-chat="vacaciones|${v.id}">💬 Comentarios</button></td></tr>`).join('') || `<tr><td colspan="6" class="empty">Aún no has solicitado vacaciones</td></tr>`}</tbody></table>
+      <tbody>${e.vacaciones.map(v=>`<tr><td>${fmtDate(v.fecha_inicio)}</td><td>${fmtDate(v.fecha_fin)}</td><td>${v.dias_solicitados}</td><td>${v.motivo||'—'}</td><td><span class="stamp ${v.estado}">${v.estado}</span></td><td><button class="btn-chat" data-chat="vacaciones|${v.id}">💬 Comentarios</button>${v.documento_url?` <a href="${v.documento_url}" target="_blank" style="font-size:13px">📄 Ver hoja</a>`:''}</td></tr>`).join('') || `<tr><td colspan="6" class="empty">Aún no has solicitado vacaciones</td></tr>`}</tbody></table>
     </div>`;
 }
 
@@ -1201,15 +1201,57 @@ function bindCapacitacionesAdmin(){
     await loadCapacitacionesAdmin(); render();
   };
 }
+function modalHojaVacacion(vac){
+  openModal(`
+  <h3>📄 Hoja de vacación — ${vac.empleado}</h3>
+  <div id="hoja-preview" style="border:1px solid var(--stone-line);border-radius:4px;padding:18px;margin-bottom:14px;font-size:13px;line-height:1.8;background:#FAF9F5">
+    <div style="text-align:center;margin-bottom:14px">
+      <div style="font-weight:700;font-size:15px">Corporación La Roca</div>
+      <div style="color:var(--slate)">Hoja de Vacación Concedida</div>
+    </div>
+    <div><b>Empleado:</b> ${vac.empleado} (${vac.codigo||'—'})</div>
+    <div><b>Puesto:</b> ${vac.puesto||'—'} · <b>Sucursal:</b> ${vac.sucursal||'—'}</div>
+    <div><b>Período:</b> ${fmtDate(vac.fecha_inicio)} → ${fmtDate(vac.fecha_fin)} (${vac.dias} días)</div>
+    <div><b>Motivo:</b> ${vac.motivo||'—'}</div>
+    <div><b>Aprobado por:</b> ${state.session.nombre}</div>
+    <div><b>Fecha de emisión:</b> ${fmtDate(new Date().toISOString().slice(0,10))}</div>
+    <div style="display:flex;justify-content:space-between;margin-top:50px">
+      <div style="text-align:center;width:45%"><div style="border-top:1px solid #333;padding-top:4px">Firma Empleado</div></div>
+      <div style="text-align:center;width:45%"><div style="border-top:1px solid #333;padding-top:4px">Firma RRHH</div></div>
+    </div>
+  </div>
+  <div style="margin-bottom:16px"><button class="btn gold sm" id="hoja-print">🖨️ Imprimir / Descargar PDF</button></div>
+  <div class="field"><label>Subir hoja firmada (foto o escaneo)</label><input type="file" id="hoja-file" accept="image/*,.pdf"></div>
+  <div id="hoja-doc-actual" style="margin:8px 0;font-size:13px">${vac.documento_url?`<a href="${vac.documento_url}" target="_blank">Ver documento actual</a>`:'Sin documento subido aún'}</div>
+  <div class="row-end"><button class="link" id="hoja-cancel">Cerrar</button><button class="btn gold sm" id="hoja-save">Subir documento</button></div>`);
+  document.getElementById('hoja-cancel').onclick = closeModal;
+  document.getElementById('hoja-print').onclick = () => {
+    const w = window.open('', '_blank');
+    w.document.write(`<html><head><title>Hoja de vacación - ${vac.empleado}</title></head><body>${document.getElementById('hoja-preview').outerHTML}</body></html>`);
+    w.document.close(); w.focus();
+    setTimeout(()=>w.print(), 300);
+  };
+  document.getElementById('hoja-save').onclick = async () => {
+    const file = document.getElementById('hoja-file').files[0];
+    if(!file){ toast('Elegí un archivo primero'); return; }
+    const url = await uploadDoc(file);
+    if(!url) return;
+    const {error} = await sb.rpc('rrhh_admin_guardar_documento_vacacion', { p_admin_codigo: state.session.codigo, p_admin_pin: state.session.pin, p_id: vac.id, p_documento_url: url });
+    if(error){ toast('Error: '+error.message); return; }
+    toast('Documento guardado'); closeModal();
+  };
+}
 function bindSolicitudesAdmin(){
   bindChatButtons();
   document.querySelectorAll('[data-resolve]').forEach(btn=>{
     btn.onclick = async () => {
       const [tabla, id, estado] = btn.getAttribute('data-resolve').split('|');
+      const vacRef = tabla==='vacaciones' ? (state.adminData.vacaciones_pendientes||[]).find(v=>v.id===id) : null;
       const {error} = await sb.rpc('rrhh_admin_resolver_solicitud', { p_admin_codigo: state.session.codigo, p_admin_pin: state.session.pin, p_tabla: tabla, p_id: id, p_estado: estado });
       if(error){ toast('Error: '+error.message); return; }
       toast(estado==='aprobado' ? 'Solicitud aprobada' : 'Solicitud rechazada');
       await loadAdminDashboard(); render();
+      if(tabla==='vacaciones' && estado==='aprobado' && vacRef) modalHojaVacacion(vacRef);
     };
   });
 }
