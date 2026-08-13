@@ -1281,14 +1281,14 @@ function modalHojaVacacion(vac){
   <h3>📄 Hoja de vacación — ${vac.empleado}</h3>
   <div id="hoja-preview" style="border:1px solid var(--stone-line);border-radius:4px;padding:18px;margin-bottom:14px;font-size:13px;line-height:1.8;background:#FAF9F5">
     <div style="text-align:center;margin-bottom:14px">
-      <div style="font-weight:700;font-size:15px">Corporación La Roca</div>
+      <div style="font-weight:700;font-size:15px">Inversiones Calix</div>
       <div style="color:var(--slate)">Hoja de Vacación Concedida</div>
     </div>
     <div><b>Asociado:</b> ${vac.empleado} (${vac.codigo||'—'})</div>
     <div><b>Puesto:</b> ${vac.puesto||'—'} · <b>Sucursal:</b> ${vac.sucursal||'—'}</div>
     <div><b>Período:</b> ${fmtDate(vac.fecha_inicio)} → ${fmtDate(vac.fecha_fin)} (${vac.dias} días)</div>
     <div><b>Motivo:</b> ${vac.motivo||'—'}</div>
-    <div><b>Aprobado por:</b> ${vac.aprobado_por || state.session.nombre}</div>
+    <div><b>Autorizado por (RRHH):</b> ${vac.aprobado_por || state.session.nombre}</div>
     <div><b>Fecha de emisión:</b> ${fmtDate(new Date().toISOString().slice(0,10))}</div>
     <div style="display:flex;justify-content:space-between;margin-top:50px">
       <div style="text-align:center;width:45%"><div style="border-top:1px solid #333;padding-top:4px">Firma Asociado</div></div>
