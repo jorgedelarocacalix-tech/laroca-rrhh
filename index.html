@@ -105,6 +105,8 @@
   .modal h3{margin:0 0 18px;}
   .row-end{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;}
   .link{color:var(--charcoal-soft);font-size:13px;text-decoration:underline;cursor:pointer;background:none;border:none;padding:0;}
+  .btn-chat{color:var(--gold);font-size:13px;font-weight:600;cursor:pointer;background:var(--gold-soft);border:1.5px solid var(--gold);border-radius:4px;padding:6px 12px;white-space:nowrap;}
+  .btn-chat:hover{background:var(--gold);color:#fff;}
   .badge-role{font-size:11px;font-weight:700;text-transform:uppercase;background:var(--gold-soft);color:#7a5e1e;padding:3px 8px;border-radius:3px;margin-left:8px;}
   .avatar{border-radius:50%;object-fit:cover;background:var(--gold-soft);}
   .avatar-ph{border-radius:50%;background:var(--charcoal-soft);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:700;flex-shrink:0;}
@@ -337,7 +339,7 @@ function viewVacaciones(){
     </div>
     <div class="card">
       <table><thead><tr><th>Desde</th><th>Hasta</th><th>Días</th><th>Motivo</th><th>Estado</th><th></th></tr></thead>
-      <tbody>${e.vacaciones.map(v=>`<tr><td>${fmtDate(v.fecha_inicio)}</td><td>${fmtDate(v.fecha_fin)}</td><td>${v.dias_solicitados}</td><td>${v.motivo||'—'}</td><td><span class="stamp ${v.estado}">${v.estado}</span></td><td><button class="link" data-chat="vacaciones|${v.id}">💬 Comentarios</button></td></tr>`).join('') || `<tr><td colspan="6" class="empty">Aún no has solicitado vacaciones</td></tr>`}</tbody></table>
+      <tbody>${e.vacaciones.map(v=>`<tr><td>${fmtDate(v.fecha_inicio)}</td><td>${fmtDate(v.fecha_fin)}</td><td>${v.dias_solicitados}</td><td>${v.motivo||'—'}</td><td><span class="stamp ${v.estado}">${v.estado}</span></td><td><button class="btn-chat" data-chat="vacaciones|${v.id}">💬 Comentarios</button></td></tr>`).join('') || `<tr><td colspan="6" class="empty">Aún no has solicitado vacaciones</td></tr>`}</tbody></table>
     </div>`;
 }
 
@@ -350,7 +352,7 @@ function viewPermisos(){
     </div>
     <div class="card">
       <table><thead><tr><th>Fecha</th><th>Tipo</th><th>Horas</th><th>Motivo</th><th>Estado</th><th></th></tr></thead>
-      <tbody>${e.permisos.map(p=>`<tr><td>${fmtDate(p.fecha)}</td><td>${p.tipo}</td><td>${p.horas??'—'}</td><td>${p.motivo||'—'}</td><td><span class="stamp ${p.estado}">${p.estado}</span></td><td><button class="link" data-chat="permisos|${p.id}">💬 Comentarios</button></td></tr>`).join('') || `<tr><td colspan="6" class="empty">Sin permisos registrados</td></tr>`}</tbody></table>
+      <tbody>${e.permisos.map(p=>`<tr><td>${fmtDate(p.fecha)}</td><td>${p.tipo}</td><td>${p.horas??'—'}</td><td>${p.motivo||'—'}</td><td><span class="stamp ${p.estado}">${p.estado}</span></td><td><button class="btn-chat" data-chat="permisos|${p.id}">💬 Comentarios</button></td></tr>`).join('') || `<tr><td colspan="6" class="empty">Sin permisos registrados</td></tr>`}</tbody></table>
     </div>`;
 }
 
@@ -388,7 +390,7 @@ function viewAdelantosEmpleado(){
     <div><h1 class="page-title">Adelantos de pago</h1><p class="page-sub">Solicita un adelanto sobre tu salario</p></div>
     <button class="btn gold sm" id="btn-solicitar-adelanto">Solicitar adelanto</button></div>
     <div class="card"><table><thead><tr><th>Fecha</th><th>Monto</th><th>Motivo</th><th>Estado</th><th></th></tr></thead>
-    <tbody>${e.adelantos.map(a=>`<tr><td>${fmtDate(a.created_at?.slice(0,10))}</td><td class="mono">${fmtL(a.monto)}</td><td>${a.motivo||'—'}</td><td><span class="stamp ${a.estado==='pagado'?'aprobado':a.estado}">${a.estado}</span></td><td><button class="link" data-chat="adelantos|${a.id}">💬 Comentarios</button></td></tr>`).join('') || `<tr><td colspan="5" class="empty">Sin solicitudes de adelanto</td></tr>`}</tbody></table></div>`;
+    <tbody>${e.adelantos.map(a=>`<tr><td>${fmtDate(a.created_at?.slice(0,10))}</td><td class="mono">${fmtL(a.monto)}</td><td>${a.motivo||'—'}</td><td><span class="stamp ${a.estado==='pagado'?'aprobado':a.estado}">${a.estado}</span></td><td><button class="btn-chat" data-chat="adelantos|${a.id}">💬 Comentarios</button></td></tr>`).join('') || `<tr><td colspan="5" class="empty">Sin solicitudes de adelanto</td></tr>`}</tbody></table></div>`;
 }
 
 function viewPrestamosEmpleado(){
@@ -397,7 +399,7 @@ function viewPrestamosEmpleado(){
     <div><h1 class="page-title">Préstamos</h1><p class="page-sub">Solicita un préstamo a pagar en cuotas</p></div>
     <button class="btn gold sm" id="btn-solicitar-prestamo">Solicitar préstamo</button></div>
     <div class="card"><table><thead><tr><th>Fecha</th><th>Monto</th><th>Plazo</th><th>Motivo</th><th>Estado</th><th></th></tr></thead>
-    <tbody>${e.prestamos.map(p=>`<tr><td>${fmtDate(p.created_at?.slice(0,10))}</td><td class="mono">${fmtL(p.monto)}</td><td>${p.plazo_meses} meses</td><td>${p.motivo||'—'}</td><td><span class="stamp ${p.estado==='pagado'?'aprobado':p.estado}">${p.estado}</span></td><td><button class="link" data-chat="prestamos|${p.id}">💬 Comentarios</button></td></tr>`).join('') || `<tr><td colspan="6" class="empty">Sin solicitudes de préstamo</td></tr>`}</tbody></table></div>`;
+    <tbody>${e.prestamos.map(p=>`<tr><td>${fmtDate(p.created_at?.slice(0,10))}</td><td class="mono">${fmtL(p.monto)}</td><td>${p.plazo_meses} meses</td><td>${p.motivo||'—'}</td><td><span class="stamp ${p.estado==='pagado'?'aprobado':p.estado}">${p.estado}</span></td><td><button class="btn-chat" data-chat="prestamos|${p.id}">💬 Comentarios</button></td></tr>`).join('') || `<tr><td colspan="6" class="empty">Sin solicitudes de préstamo</td></tr>`}</tbody></table></div>`;
 }
 
 function embedVideo(url){
@@ -679,7 +681,7 @@ function viewSolicitudesAdmin(){
         <div style="font-size:13px;color:var(--slate);margin:2px 0 8px">${fmtDate(v.fecha_inicio)} → ${fmtDate(v.fecha_fin)} (${v.dias} días)</div>
         <button class="btn sm" style="background:var(--green);color:#fff" data-resolve="vacaciones|${v.id}|aprobado">Aprobar</button>
         <button class="btn sm" style="background:var(--brick);color:#fff" data-resolve="vacaciones|${v.id}|rechazado">Rechazar</button>
-        <button class="link" data-chat="vacaciones|${v.id}" style="margin-left:6px">💬 Comentarios</button>
+        <button class="btn-chat" data-chat="vacaciones|${v.id}" style="margin-left:6px">💬 Comentarios</button>
       </div>`).join('') || '<div class="empty">Sin solicitudes pendientes</div>'}</div>
     <div class="card"><h3 style="margin-top:0">Permisos</h3>
       ${d.permisos_pendientes.map(p=>`<div style="padding:10px 0;border-bottom:1px solid var(--stone-line)">
@@ -687,7 +689,7 @@ function viewSolicitudesAdmin(){
         <div style="font-size:13px;color:var(--slate);margin:2px 0 8px">${fmtDate(p.fecha)} · ${p.tipo} · ${p.horas||'—'}h</div>
         <button class="btn sm" style="background:var(--green);color:#fff" data-resolve="permisos|${p.id}|aprobado">Aprobar</button>
         <button class="btn sm" style="background:var(--brick);color:#fff" data-resolve="permisos|${p.id}|rechazado">Rechazar</button>
-        <button class="link" data-chat="permisos|${p.id}" style="margin-left:6px">💬 Comentarios</button>
+        <button class="btn-chat" data-chat="permisos|${p.id}" style="margin-left:6px">💬 Comentarios</button>
       </div>`).join('') || '<div class="empty">Sin solicitudes pendientes</div>'}</div>
   </div>
   <div style="height:16px"></div>
@@ -698,7 +700,7 @@ function viewSolicitudesAdmin(){
         <div style="font-size:13px;color:var(--slate);margin:2px 0 8px">${a.motivo||'—'}</div>
         <button class="btn sm" style="background:var(--green);color:#fff" data-resolve="adelantos|${a.id}|aprobado">Aprobar</button>
         <button class="btn sm" style="background:var(--brick);color:#fff" data-resolve="adelantos|${a.id}|rechazado">Rechazar</button>
-        <button class="link" data-chat="adelantos|${a.id}" style="margin-left:6px">💬 Comentarios</button>
+        <button class="btn-chat" data-chat="adelantos|${a.id}" style="margin-left:6px">💬 Comentarios</button>
       </div>`).join('') || '<div class="empty">Sin solicitudes pendientes</div>'}</div>
     <div class="card"><h3 style="margin-top:0">Préstamos</h3>
       ${d.prestamos_pendientes.map(p=>`<div style="padding:10px 0;border-bottom:1px solid var(--stone-line)">
@@ -706,7 +708,7 @@ function viewSolicitudesAdmin(){
         <div style="font-size:13px;color:var(--slate);margin:2px 0 8px">${p.motivo||'—'}</div>
         <button class="btn sm" style="background:var(--green);color:#fff" data-resolve="prestamos|${p.id}|aprobado">Aprobar</button>
         <button class="btn sm" style="background:var(--brick);color:#fff" data-resolve="prestamos|${p.id}|rechazado">Rechazar</button>
-        <button class="link" data-chat="prestamos|${p.id}" style="margin-left:6px">💬 Comentarios</button>
+        <button class="btn-chat" data-chat="prestamos|${p.id}" style="margin-left:6px">💬 Comentarios</button>
       </div>`).join('') || '<div class="empty">Sin solicitudes pendientes</div>'}</div>
   </div>`;
 }
