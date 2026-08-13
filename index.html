@@ -352,7 +352,7 @@ function viewVacaciones(){
     </div>
     <div class="card">
       <table><thead><tr><th>Desde</th><th>Hasta</th><th>Días</th><th>Motivo</th><th>Estado</th><th></th></tr></thead>
-      <tbody>${e.vacaciones.map(v=>`<tr><td>${fmtDate(v.fecha_inicio)}</td><td>${fmtDate(v.fecha_fin)}</td><td>${v.dias_solicitados}</td><td>${v.motivo||'—'}</td><td><span class="stamp ${v.estado}">${v.estado}</span></td><td><button class="btn-chat" data-chat="vacaciones|${v.id}">💬 Comentarios</button>${v.documento_url?` <a href="${v.documento_url}" target="_blank" style="font-size:13px">📄 Ver hoja</a>`:''}</td></tr>`).join('') || `<tr><td colspan="6" class="empty">Aún no has solicitado vacaciones</td></tr>`}</tbody></table>
+      <tbody>${e.vacaciones.map(v=>`<tr><td>${fmtDate(v.fecha_inicio)}</td><td>${fmtDate(v.fecha_fin)}</td><td>${v.dias_solicitados}</td><td>${v.motivo||'—'}</td><td><span class="stamp ${v.estado}">${v.estado}</span></td><td><button class="btn-chat" data-chat="vacaciones|${v.id}">💬 Comentarios</button>${v.estado==='aprobado'?` <button class="btn-chat" data-hoja-emp="${v.id}">📄 Hoja</button>`:''}</td></tr>`).join('') || `<tr><td colspan="6" class="empty">Aún no has solicitado vacaciones</td></tr>`}</tbody></table>
     </div>`;
 }
 
@@ -508,10 +508,19 @@ function viewMemorandosEmpleado(){
   const e = state.expediente;
   return `<h1 class="page-title">Memorándums</h1><p class="page-sub">Comunicados dirigidos a ti o a todo el personal</p>
     <div class="card">${e.memorandos.map(m=>`<div style="padding:14px 0;border-bottom:1px solid var(--stone-line)">
-      <div style="display:flex;justify-content:space-between"><b>${m.titulo}</b><span style="color:var(--slate);font-size:13px">${fmtDate(m.fecha)}</span></div>
+      <div style="display:flex;justify-content:space-between;align-items:center"><b>${m.titulo}</b><span style="color:var(--slate);font-size:13px">${fmtDate(m.fecha)}</span></div>
       <p style="margin:6px 0;font-size:14px;color:var(--charcoal-soft)">${m.contenido||''}</p>
-      ${m.documento_url?`<a href="${m.documento_url}" target="_blank" style="font-size:13px">Ver documento adjunto</a>`:''}
+      <button class="btn-chat" data-memo-emp="${m.id}">📄 Ver / Imprimir / Firmar</button>
     </div>`).join('') || '<div class="empty">Sin memorándums por ahora</div>'}</div>`;
+}
+function bindMemorandosEmpleado(){
+  document.querySelectorAll('[data-memo-emp]').forEach(btn=>{
+    btn.onclick = () => {
+      const e = state.expediente;
+      const m = e.memorandos.find(x=>x.id===btn.getAttribute('data-memo-emp'));
+      if(m) modalDocumentoMemo({...m, empleado: e.empleado.nombre}, true);
+    };
+  });
 }
 
 function viewPerfilEmpleado(){
@@ -684,7 +693,10 @@ function viewMemosAdmin(){
   </div>
   <div style="height:22px"></div>
   <div class="card"><h3 style="margin-top:0">Recientes (30 días)</h3>
-    ${(d?.memos_recientes||[]).map(m=>`<div style="padding:8px 0;border-bottom:1px solid var(--stone-line);font-size:14px">${m.titulo} · ${m.empleado} · ${fmtDate(m.fecha)}</div>`).join('') || '<div class="empty">Sin memorándums recientes</div>'}</div>`;
+    ${(d?.memos_recientes||[]).map(m=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--stone-line);font-size:14px">
+      <span>${m.titulo} · ${m.empleado} · ${fmtDate(m.fecha)}</span>
+      <button class="btn-chat" data-memo="${m.id}">📄 Ver / Imprimir</button>
+    </div>`).join('') || '<div class="empty">Sin memorándums recientes</div>'}</div>`;
 }
 
 function viewCapacitacionesAdmin(){
@@ -1036,7 +1048,17 @@ async function render(){
   if(!state.expediente) await loadExpediente();
   if(state.view==='resumen') renderShell(viewResumen());
   else if(state.view==='perfil'){ renderShell(viewPerfilEmpleado()); bindPerfilEmpleado(); }
-  else if(state.view==='vacaciones'){ renderShell(viewVacaciones()); document.getElementById('btn-solicitar-vac').onclick = modalSolicitarVacacion; bindChatButtons(); }
+  else if(state.view==='vacaciones'){ renderShell(viewVacaciones()); document.getElementById('btn-solicitar-vac').onclick = modalSolicitarVacacion; bindChatButtons();
+    document.querySelectorAll('[data-hoja-emp]').forEach(btn=>{
+      btn.onclick = () => {
+        const e = state.expediente;
+        const v = e.vacaciones.find(x=>x.id===btn.getAttribute('data-hoja-emp'));
+        if(!v) return;
+        modalHojaVacacion({ id:v.id, empleado:e.empleado.nombre, codigo:e.empleado.codigo, puesto:e.empleado.puesto, sucursal:e.empleado.sucursal,
+          fecha_inicio:v.fecha_inicio, fecha_fin:v.fecha_fin, dias:v.dias_solicitados, motivo:v.motivo, aprobado_por:v.aprobado_por, documento_url:v.documento_url }, true);
+      };
+    });
+  }
   else if(state.view==='permisos'){ renderShell(viewPermisos()); document.getElementById('btn-solicitar-permiso').onclick = modalSolicitarPermiso; bindChatButtons(); }
   else if(state.view==='adelantos'){ renderShell(viewAdelantosEmpleado()); document.getElementById('btn-solicitar-adelanto').onclick = modalSolicitarAdelanto; bindChatButtons(); }
   else if(state.view==='prestamos'){ renderShell(viewPrestamosEmpleado()); document.getElementById('btn-solicitar-prestamo').onclick = modalSolicitarPrestamo; bindChatButtons(); }
@@ -1044,7 +1066,7 @@ async function render(){
   else if(state.view==='pagos') renderShell(viewPagosEmpleado());
   else if(state.view==='incapacidades'){ renderShell(viewIncapacidadesEmpleado()); document.getElementById('btn-nueva-incapacidad').onclick = modalNuevaIncapacidad; }
   else if(state.view==='llamadas') renderShell(viewLlamadasEmpleado());
-  else if(state.view==='memorandos') renderShell(viewMemorandosEmpleado());
+  else if(state.view==='memorandos'){ renderShell(viewMemorandosEmpleado()); bindMemorandosEmpleado(); }
   else if(state.view==='capacitaciones'){ if(!state.capacitaciones) await loadCapacitacionesEmpleado(); renderShell(viewCapacitacionesEmpleado()); bindCapacitacionesEmpleado(); }
   else { state.view='resumen'; render(); }
 }
@@ -1237,6 +1259,12 @@ function bindMemosAdmin(){
     if(error){ toast('Error: '+error.message); return; }
     toast('Memorándum enviado'); state.adminData = null; await loadAdminDashboard(); render();
   };
+  document.querySelectorAll('[data-memo]').forEach(btn=>{
+    btn.onclick = () => {
+      const memo = ((state.adminData&&state.adminData.memos_recientes)||[]).find(m=>m.id===btn.getAttribute('data-memo'));
+      if(memo) modalDocumentoMemo(memo, false);
+    };
+  });
 }
 
 function bindCapacitacionesAdmin(){
@@ -1287,7 +1315,7 @@ function bindCapacitacionesAdmin(){
     await loadCapacitacionesAdmin(); render();
   };
 }
-function modalHojaVacacion(vac){
+function modalHojaVacacion(vac, esEmpleado){
   openModal(`
   <h3>📄 Hoja de vacación — ${vac.empleado}</h3>
   <div id="hoja-preview" style="border:1px solid var(--stone-line);border-radius:4px;padding:18px;margin-bottom:14px;font-size:13px;line-height:1.8;background:#FAF9F5">
@@ -1322,11 +1350,59 @@ function modalHojaVacacion(vac){
     if(!file){ toast('Elegí un archivo primero'); return; }
     const url = await uploadDoc(file);
     if(!url) return;
-    const {error} = await sb.rpc('rrhh_admin_guardar_documento_vacacion', { p_admin_codigo: state.session.codigo, p_admin_pin: state.session.pin, p_id: vac.id, p_documento_url: url });
+    const {error} = esEmpleado
+      ? await sb.rpc('rrhh_guardar_documento_vacacion', { p_empleado_id: state.session.empleado_id, p_pin: state.session.pin, p_id: vac.id, p_documento_url: url })
+      : await sb.rpc('rrhh_admin_guardar_documento_vacacion', { p_admin_codigo: state.session.codigo, p_admin_pin: state.session.pin, p_id: vac.id, p_documento_url: url });
     if(error){ toast('Error: '+error.message); return; }
     toast('Documento guardado'); closeModal();
-    state.vacacionesAdmin = null;
-    if(state.view==='vacaciones-admin'){ await loadVacacionesAdmin(); render(); }
+    if(esEmpleado){ state.expediente = null; await loadExpediente(); render(); }
+    else { state.vacacionesAdmin = null; if(state.view==='vacaciones-admin'){ await loadVacacionesAdmin(); render(); } }
+  };
+}
+function modalDocumentoMemo(memo, esEmpleado){
+  openModal(`
+  <h3>📄 Memorándum — ${memo.titulo}</h3>
+  <div id="memo-preview" style="border:1px solid var(--stone-line);border-radius:4px;padding:18px;margin-bottom:14px;font-size:13px;line-height:1.8;background:#FAF9F5">
+    <div style="text-align:center;margin-bottom:14px">
+      <div style="font-weight:700;font-size:15px">Inversiones Calix</div>
+      <div style="color:var(--slate)">Memorándum</div>
+    </div>
+    <div><b>Para:</b> ${memo.empleado_id ? memo.empleado : 'Todo el personal'}</div>
+    <div><b>De:</b> RRHH — ${memo.creado_por||'—'}</div>
+    <div><b>Fecha:</b> ${fmtDate(memo.fecha)}</div>
+    <div style="margin-top:10px"><b>${memo.titulo}</b></div>
+    <div style="margin-top:6px;white-space:pre-wrap">${memo.contenido||''}</div>
+    <div style="display:flex;justify-content:space-between;margin-top:50px">
+      <div style="text-align:center;width:45%"><div style="border-top:1px solid #333;padding-top:4px">Firma de recibido</div></div>
+      <div style="text-align:center;width:45%"><div style="border-top:1px solid #333;padding-top:4px">Firma RRHH</div></div>
+    </div>
+  </div>
+  <div style="margin-bottom:16px"><button class="btn gold sm" id="memo-print">🖨️ Imprimir / Descargar PDF</button></div>
+  ${memo.empleado_id ? `
+  <div class="field"><label>Subir memo firmado (foto o escaneo)</label><input type="file" id="memo-file" accept="image/*,.pdf"></div>
+  <div id="memo-doc-actual" style="margin:8px 0;font-size:13px">${memo.documento_url?`<a href="${memo.documento_url}" target="_blank">Ver documento actual</a>`:'Sin documento subido aún'}</div>
+  <div class="row-end"><button class="link" id="memo-cancel">Cerrar</button><button class="btn gold sm" id="memo-save">Subir documento</button></div>` : `
+  <div class="row-end"><button class="link" id="memo-cancel">Cerrar</button></div>`}`);
+  document.getElementById('memo-cancel').onclick = closeModal;
+  document.getElementById('memo-print').onclick = () => {
+    const w = window.open('', '_blank');
+    w.document.write(`<html><head><title>Memorándum - ${memo.titulo}</title></head><body>${document.getElementById('memo-preview').outerHTML}</body></html>`);
+    w.document.close(); w.focus();
+    setTimeout(()=>w.print(), 300);
+  };
+  const btnSave = document.getElementById('memo-save');
+  if(btnSave) btnSave.onclick = async () => {
+    const file = document.getElementById('memo-file').files[0];
+    if(!file){ toast('Elegí un archivo primero'); return; }
+    const url = await uploadDoc(file);
+    if(!url) return;
+    const {error} = esEmpleado
+      ? await sb.rpc('rrhh_guardar_documento_memo', { p_empleado_id: state.session.empleado_id, p_pin: state.session.pin, p_id: memo.id, p_documento_url: url })
+      : await sb.rpc('rrhh_admin_guardar_documento_memo', { p_admin_codigo: state.session.codigo, p_admin_pin: state.session.pin, p_id: memo.id, p_documento_url: url });
+    if(error){ toast('Error: '+error.message); return; }
+    toast('Documento guardado'); closeModal();
+    if(esEmpleado){ state.expediente = null; await loadExpediente(); render(); }
+    else { state.adminData = null; await loadAdminDashboard(); render(); }
   };
 }
 function bindVacacionesAdmin(){
