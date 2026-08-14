@@ -946,9 +946,9 @@ function modalNuevoEmpleado(){
     <h3>Nuevo asociado</h3>
     <div class="form-row">
       <div class="field"><label>Código</label><input id="ne-codigo" placeholder="R1-014"></div>
-      <div class="field"><label>PIN inicial</label><input id="ne-pin" placeholder="4 dígitos"></div>
+      <div class="field"><label>Nombre completo</label><input id="ne-nombre"></div>
     </div>
-    <div class="field"><label>Nombre completo</label><input id="ne-nombre"></div>
+    <div class="field" style="font-size:12px;color:var(--slate)">El PIN se genera automáticamente y único para toda la empresa — lo verás al terminar de crear el asociado.</div>
     <div class="form-row">
       <div class="field"><label>Puesto</label><input id="ne-puesto"></div>
       <div class="field"><label>Sucursal</label><select id="ne-sucursal">${SUCURSALES.map(s=>`<option>${s}</option>`).join('')}</select></div>
@@ -967,20 +967,25 @@ function modalNuevoEmpleado(){
   document.getElementById('ne-cancel').onclick = closeModal;
   document.getElementById('ne-save').onclick = async () => {
     const codigo = document.getElementById('ne-codigo').value.trim();
-    const pin = document.getElementById('ne-pin').value.trim();
     const nombre = document.getElementById('ne-nombre').value.trim();
-    if(!codigo || !pin || !nombre){ toast('Completa código, PIN y nombre'); return; }
-    const {error} = await sb.rpc('rrhh_admin_crear_empleado', {
+    if(!codigo || !nombre){ toast('Completa código y nombre'); return; }
+    const {data, error} = await sb.rpc('rrhh_admin_crear_empleado', {
       p_admin_codigo: state.session.codigo, p_admin_pin: state.session.pin,
       p_codigo: codigo, p_nombre: nombre, p_puesto: document.getElementById('ne-puesto').value,
       p_sucursal: document.getElementById('ne-sucursal').value, p_fecha_ingreso: document.getElementById('ne-fecha').value || null,
-      p_salario_base: Number(document.getElementById('ne-salario').value||0), p_pin: pin,
+      p_salario_base: Number(document.getElementById('ne-salario').value||0),
       p_dias_vacaciones: Number(document.getElementById('ne-dias').value||10), p_rol: document.getElementById('ne-rol').value,
       p_fecha_nacimiento: document.getElementById('ne-nacimiento').value || null,
       p_accesos_apps: leerAccesosAppsBuilder('ne-acc')
     });
     if(error){ toast('Error: '+error.message); return; }
-    closeModal(); toast('Asociado creado'); await loadAdminEmpleados(); render();
+    closeModal(); await loadAdminEmpleados(); render();
+    openModal(`<h3>✅ Asociado creado</h3>
+      <p style="font-size:14px">El PIN de <b>${nombre}</b> es:</p>
+      <div style="font-size:32px;font-weight:700;letter-spacing:4px;text-align:center;padding:16px;background:var(--gold-soft);border-radius:6px;color:#7a5e1e;font-family:'JetBrains Mono',monospace">${data.pin}</div>
+      <p style="font-size:12px;color:var(--slate);margin-top:10px">Anótalo o compártelo ahora — no se va a volver a mostrar. Sirve para entrar a RRHH y al CRM.</p>
+      <div class="row-end"><button class="btn gold sm" id="np-close">Entendido</button></div>`);
+    document.getElementById('np-close').onclick = closeModal;
   };
 }
 
