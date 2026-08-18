@@ -133,6 +133,19 @@ const SUPABASE_URL = 'https://upaenjotkocmdvfuobii.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwYWVuam90a29jbWR2ZnVvYmlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NjQzMzUsImV4cCI6MjA5NDQ0MDMzNX0.am0lcEwz4-HK0KvrPBtv1QB7joNYDpOuQNhbc1HjwZ8';
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Push de solicitudes: el envio de notificaciones vive en el proyecto Supabase principal
+// (compartido con la Suite/Cobranza), no en el de RRHH/CRM. Los admins ya estan suscritos
+// con rol 'rrhh' desde que activaron notificaciones en la Suite.
+const PUSH_URL = 'https://ixskgawbpwwxdjnkiixt.supabase.co';
+const PUSH_KEY = 'sb_publishable_-JUaSYPPkq8n4wJIKPtXGw_XMyj3EE7';
+function notificarAdminsRRHH(title, body){
+  fetch(PUSH_URL + '/functions/v1/send-push', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: PUSH_KEY, Authorization: 'Bearer ' + PUSH_KEY },
+    body: JSON.stringify({ title, body, role: 'rrhh', url: 'https://laroca-rrhh-production.up.railway.app/' })
+  }).catch(function(err){ console.error('notificarAdminsRRHH', err); });
+}
+
 const SUCURSALES = [['roca1','Roca 1'],['roca1motors','Roca Motors 1'],['roca2motors','Roca Motors 2'],['sumotodanli','Su Moto Danlí'],['sumuebledanli','Su Mueble Danlí']];
 
 let state = {
@@ -416,6 +429,7 @@ function modalNuevaIncapacidad(){
     const url = file ? await uploadDoc(file) : null;
     const {error} = await sb.rpc('rrhh_crear_incapacidad', {p_empleado_id: state.session.empleado_id, p_pin: state.session.pin, p_tipo: tipo, p_fecha_inicio: inicio, p_fecha_fin: fin, p_documento_url: url, p_notas: notas});
     if(error){ toast('Error: '+error.message); return; }
+    notificarAdminsRRHH('🤒 Nueva incapacidad reportada', (state.session.nombre||'Un asociado')+' reportó incapacidad ('+tipo+') del '+fmtDate(inicio)+' al '+fmtDate(fin));
     closeModal(); toast('Incapacidad enviada — RRHH la va a revisar'); await loadExpediente(); render();
   };
 }
@@ -826,6 +840,7 @@ function modalSolicitarVacacion(){
     if(errFecha){ toast(errFecha); return; }
     const {error} = await sb.rpc('rrhh_solicitar_vacacion', {p_empleado_id: state.session.empleado_id, p_pin: state.session.pin, p_fecha_inicio: inicio, p_fecha_fin: fin, p_dias: Number(dias), p_motivo: motivo});
     if(error){ toast('Error: '+error.message); return; }
+    notificarAdminsRRHH('🏖️ Nueva solicitud de vacaciones', (state.session.nombre||'Un asociado')+' pidió '+dias+' día(s), del '+fmtDate(inicio)+' al '+fmtDate(fin));
     closeModal(); toast('Solicitud enviada'); await loadExpediente(); render();
   };
 }
@@ -847,6 +862,7 @@ function modalSolicitarPermiso(){
     if(!fecha){ toast('Selecciona una fecha'); return; }
     const {error} = await sb.rpc('rrhh_solicitar_permiso', {p_empleado_id: state.session.empleado_id, p_pin: state.session.pin, p_tipo: tipo, p_fecha: fecha, p_horas: horas?Number(horas):null, p_motivo: motivo});
     if(error){ toast('Error: '+error.message); return; }
+    notificarAdminsRRHH('📋 Nueva solicitud de permiso', (state.session.nombre||'Un asociado')+' pidió permiso ('+tipo+') para el '+fmtDate(fecha));
     closeModal(); toast('Solicitud enviada'); await loadExpediente(); render();
   };
 }
@@ -863,6 +879,7 @@ function modalSolicitarAdelanto(){
     if(!monto || Number(monto)<=0){ toast('Ingresa un monto válido'); return; }
     const {error} = await sb.rpc('rrhh_solicitar_adelanto', {p_empleado_id: state.session.empleado_id, p_pin: state.session.pin, p_monto: Number(monto), p_motivo: motivo});
     if(error){ toast('Error: '+error.message); return; }
+    notificarAdminsRRHH('💰 Nueva solicitud de adelanto', (state.session.nombre||'Un asociado')+' pidió un adelanto de L '+Number(monto).toLocaleString('es-HN'));
     closeModal(); toast('Solicitud enviada'); await loadExpediente(); render();
   };
 }
@@ -882,6 +899,7 @@ function modalSolicitarPrestamo(){
     if(!monto || Number(monto)<=0 || !plazo){ toast('Completa monto y plazo'); return; }
     const {error} = await sb.rpc('rrhh_solicitar_prestamo', {p_empleado_id: state.session.empleado_id, p_pin: state.session.pin, p_monto: Number(monto), p_plazo_meses: Number(plazo), p_motivo: motivo});
     if(error){ toast('Error: '+error.message); return; }
+    notificarAdminsRRHH('🏦 Nueva solicitud de préstamo', (state.session.nombre||'Un asociado')+' pidió un préstamo de L '+Number(monto).toLocaleString('es-HN')+' a '+plazo+' meses');
     closeModal(); toast('Solicitud enviada'); await loadExpediente(); render();
   };
 }
