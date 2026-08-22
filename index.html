@@ -232,6 +232,7 @@ async function loadExpediente(){
   const {data, error} = await sb.rpc('rrhh_mi_expediente', {p_empleado_id: session.empleado_id, p_pin: session.pin});
   if(error){ toast('Error cargando expediente'); return; }
   state.expediente = data;
+  if(typeof _lastEstadosSig!=='undefined') _lastEstadosSig = sigEstadosEmp(data);
 }
 
 /* ============ ADMIN DATA ============ */
@@ -246,6 +247,7 @@ async function loadAdminDashboard(){
   const {data, error} = await sb.rpc('rrhh_admin_dashboard', {p_admin_codigo: session.codigo, p_admin_pin: session.pin});
   if(error){ toast('Error: '+error.message); return; }
   state.adminData = data;
+  if(typeof _lastSolicSig!=='undefined') _lastSolicSig = sigAdminPend(data);
 }
 async function loadVacacionesAdmin(){
   const {session} = state;
@@ -1117,6 +1119,58 @@ function modalCambiarPin(emp){
     closeModal(); toast('PIN actualizado');
   };
 }
+
+/* ============ AUTO-REFRESH (polling cada 20s) ============ */
+const POLL_MS = 20000;
+let _pollBusy = false;
+let _lastSolicSig = null;   // admin: firma de solicitudes pendientes
+let _lastEstadosSig = null; // empleado: firma de estados de mis solicitudes
+
+function sigAdminPend(d){
+  if(!d) return '';
+  const parts=[];
+  const add=(arr,t)=>(arr||[]).forEach(x=>parts.push(t+x.id));
+  add(d.incapacidades_pendientes,'i');add(d.vacaciones_pendientes,'v');add(d.permisos_pendientes,'p');
+  add(d.adelantos_pendientes,'a');add(d.prestamos_pendientes,'pr');
+  return parts.sort().join('|');
+}
+function sigEstadosEmp(e){
+  if(!e) return '';
+  const f=(arr)=>(arr||[]).map(x=>x.id+':'+(x.estado||'')).sort().join(',');
+  return [f(e.vacaciones),f(e.permisos),f(e.adelantos),f(e.prestamos),f(e.incapacidades)].join('#');
+}
+async function pollTick(){
+  const s=state.session;
+  if(!s || _pollBusy || document.hidden || document.getElementById('modal-bg')) return;
+  _pollBusy=true;
+  try{
+    if(s.rol==='admin'){
+      const {data,error}=await sb.rpc('rrhh_admin_dashboard',{p_admin_codigo:s.codigo,p_admin_pin:s.pin});
+      if(!error && data){
+        const sig=sigAdminPend(data);
+        if(_lastSolicSig!==null && sig!==_lastSolicSig){
+          state.adminData=data;          // actualizar datos en vivo
+          render();                      // refrescar la vista actual
+          toast('🔔 Hubo cambios en las solicitudes');
+        }
+        _lastSolicSig=sig;
+      }
+    } else {
+      const {data,error}=await sb.rpc('rrhh_mi_expediente',{p_empleado_id:s.empleado_id,p_pin:s.pin});
+      if(!error && data){
+        const sig=sigEstadosEmp(data);
+        if(_lastEstadosSig!==null && sig!==_lastEstadosSig){
+          state.expediente=data;
+          render();
+          toast('🔄 Tu solicitud fue actualizada — revisa el estado');
+        }
+        _lastEstadosSig=sig;
+      }
+    }
+  }catch(err){ /* silencioso */ }
+  _pollBusy=false;
+}
+setInterval(pollTick, POLL_MS);
 
 /* ============ RENDER ROUTER ============ */
 async function render(){
