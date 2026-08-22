@@ -597,7 +597,7 @@ function viewEmpleadosAdmin(){
     <tbody>${list.map(e=>`<tr>
       <td><div class="avatar-wrap" data-foto-emp="${e.id}">${avatarHtml(e.nombre, e.foto_url, 'sm')}<span class="cam">📷</span></div></td>
       <td class="mono">${e.codigo}</td><td>${e.nombre}${e.nivel_admin?`<span class="badge-role">${e.nivel_admin}</span>`:''}</td><td>${e.puesto||'—'}</td><td>${e.sucursal||'—'}</td><td class="mono">${fmtL(e.salario_base)}</td><td>${e.rol}</td>
-      <td style="font-size:12px">${APPS_SUITE.filter(([k])=>e.accesos_apps&&e.accesos_apps[k]).map(([,l])=>l).join(', ')||'—'}</td>
+      <td style="font-size:12px">${APPS_SUITE.filter(([k])=>e.accesos_apps&&e.accesos_apps[k]===true).map(([,l])=>l).join(', ')||'—'}${e.accesos_apps&&Array.isArray(e.accesos_apps.sucursales)&&e.accesos_apps.sucursales.length?`<div style="color:var(--slate);font-size:11px">${e.accesos_apps.sucursales.join(' &middot; ')}</div>`:''}</td>
       <td>${e.identidad_url?`<a href="${e.identidad_url}" target="_blank">Ver</a>`:'—'}</td>
       <td><span class="stamp ${e.activo?'aprobado':'rechazado'}">${e.activo?'activo':'inactivo'}</span></td>
       <td><button class="link" data-editar-empleado="${e.id}">Editar datos</button> · <button class="link" data-editar-accesos="${e.id}">Editar accesos</button></td></tr>`).join('') || `<tr><td colspan="11" class="empty">Aún no hay asociados — crea el primero</td></tr>`}</tbody></table></div>`;
@@ -980,7 +980,7 @@ function modalNuevoEmpleado(){
       <div class="field"><label>Días vacación/año</label><input type="number" id="ne-dias" value="10"></div>
     </div>
     <div class="field"><label>Rol</label><select id="ne-rol"><option value="empleado">Asociado</option><option value="admin">Admin / RRHH</option></select></div>
-    <div class="field">${accesosAppsBuilder('ne-acc', {rrhh:true,crm:true,cobranza:true,cierre:false,arqueos:false})}</div>
+    <div class="field">${accesosAppsBuilder('ne-acc', {rrhh:true,crm:true,cobranza:true,cierre:false,equipos:false,arqueos:false,fintrack:false,erp:false,sucursales:[],arqueos_rol:null})}</div>
     <div class="row-end"><button class="link" id="ne-cancel">Cancelar</button><button class="btn gold sm" id="ne-save">Crear asociado</button></div>`);
   document.getElementById('ne-cancel').onclick = closeModal;
   document.getElementById('ne-save').onclick = async () => {
@@ -1008,18 +1008,34 @@ function modalNuevoEmpleado(){
 }
 
 /* ---- Accesos por app (checkboxes reutilizables) ---- */
-const APPS_SUITE = [['rrhh','RRHH'],['crm','CRM'],['cobranza','Cobranza'],['cierre','Análisis de Cierre'],['arqueos','Arqueos']];
+const APPS_SUITE = [['rrhh','RRHH'],['crm','CRM'],['cobranza','Cobranza'],['cierre','Análisis de Cierre'],['equipos','Equipos'],['arqueos','Arqueos'],['fintrack','Fintrack'],['erp','ERP']];
+const SUCS_SUITE = [['R1','R1 Comercial'],['R2','R2 Barrio Arriba'],['R3','R3 Motors La Libertad'],['R4','R4 Su Mueble'],['R5','R5 Su Moto'],['R6','R6 (pruebas)']];
 function accesosAppsBuilder(prefix, accesos){
   accesos = accesos || {};
+  const sucs = Array.isArray(accesos.sucursales) ? accesos.sucursales : [];
+  const rolArq = accesos.arqueos_rol || '';
   return `<label>Acceso a apps (Suite)</label>
     <div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 0 2px">
       ${APPS_SUITE.map(([k,label])=>`<label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;cursor:pointer">
         <input type="checkbox" id="${prefix}-${k}" ${accesos[k]?'checked':''}> ${label}</label>`).join('')}
-    </div>`;
+    </div>
+    <div style="margin-top:10px"><label style="display:block;font-size:12px;color:var(--slate)">Sucursales asignadas — filtran lo que ve en Cierre, Equipos y Arqueos</label>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;padding:6px 0 0">
+        ${SUCS_SUITE.map(([v,l])=>`<label style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:500;cursor:pointer">
+          <input type="checkbox" class="${prefix}-suc" value="${v}" ${sucs.includes(v)?'checked':''}> ${l}</label>`).join('')}
+      </div></div>
+    <div style="margin-top:10px"><label style="display:block;font-size:12px;color:var(--slate)">Rol en Arqueos</label>
+      <select id="${prefix}-arqrol" class="input" style="width:100%">
+        <option value="" ${!rolArq?'selected':''}>&mdash; Ninguno &mdash;</option>
+        <option value="cajera" ${rolArq==='cajera'?'selected':''}>Cajera (solo sus sucursales)</option>
+        <option value="auditor" ${rolArq==='auditor'?'selected':''}>Auditor (ve todas)</option>
+      </select></div>`;
 }
 function leerAccesosAppsBuilder(prefix){
   const out = {};
   APPS_SUITE.forEach(([k])=>{ out[k] = !!document.getElementById(`${prefix}-${k}`)?.checked; });
+  out.sucursales = [...document.querySelectorAll(`.${prefix}-suc:checked`)].map(c=>c.value);
+  out.arqueos_rol = document.getElementById(`${prefix}-arqrol`)?.value || null;
   return out;
 }
 
