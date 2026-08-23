@@ -273,6 +273,7 @@ function navItemsFor(rol){
   if(rol==='admin'){
     return [
       ['dashboard','Panel general'],
+      ['perfil','Mi perfil'],
       ['empleados','Asociados'],
       ['vacaciones-admin','Vacaciones'],
       ['asistencias-admin','Asistencias'],
@@ -1188,6 +1189,7 @@ async function render(){
     else if(state.view==='memos-admin'){ if(!state.empleados) await loadAdminEmpleados(); if(!state.adminData) await loadAdminDashboard(); renderShell(viewMemosAdmin()); bindMemosAdmin(); }
     else if(state.view==='capacitaciones-admin'){ if(!state.capacitacionesAdmin) await loadCapacitacionesAdmin(); renderShell(viewCapacitacionesAdmin()); bindCapacitacionesAdmin(); }
     else if(state.view==='solicitudes'){ await loadAdminDashboard(); renderShell(viewSolicitudesAdmin()); bindSolicitudesAdmin(); }
+    else if(state.view==='perfil'){ if(!state.expediente) await loadExpediente(); renderShell(viewPerfilEmpleado()); bindPerfilEmpleado(); }
     else { state.view='dashboard'; render(); }
     return;
   }
