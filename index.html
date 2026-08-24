@@ -838,7 +838,11 @@ function openModal(html){
   document.body.appendChild(bg);
   bg.addEventListener('click', e=>{ if(e.target===bg) closeModal(); });
 }
-function closeModal(){ document.getElementById('modal-bg')?.remove(); }
+let _chatPollTimer = null;
+function closeModal(){
+  document.getElementById('modal-bg')?.remove();
+  if(_chatPollTimer){ clearInterval(_chatPollTimer); _chatPollTimer = null; }
+}
 
 function modalSolicitarVacacion(){
   openModal(`
@@ -961,6 +965,7 @@ async function modalChatSolicitud(tabla, solicitudId, readonly){
     pintarMsgs(data);
   };
   await cargar();
+  _chatPollTimer = setInterval(cargar, 5000);
 
   if(!readonly){
     document.getElementById('chat-send').onclick = async () => {
