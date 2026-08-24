@@ -952,6 +952,11 @@ async function modalChatSolicitud(tabla, solicitudId){
       ? await sb.rpc('rrhh_admin_enviar_mensaje_solicitud', {p_admin_codigo: state.session.codigo, p_admin_pin: state.session.pin, p_tabla: tabla, p_solicitud_id: solicitudId, p_mensaje: mensaje})
       : await sb.rpc('rrhh_enviar_mensaje_solicitud', {p_empleado_id: state.session.empleado_id, p_pin: state.session.pin, p_tabla: tabla, p_solicitud_id: solicitudId, p_mensaje: mensaje});
     if(error){ toast('Error: '+error.message); return; }
+    const nombre = state.session.nombre || (esAdmin ? 'Un admin' : 'Un asociado');
+    notificarAdminsRRHH(
+      esAdmin ? `💬 ${nombre} comentó — ${SOLICITUD_LABEL[tabla]||''}` : `💬 Nuevo comentario — ${SOLICITUD_LABEL[tabla]||''}`,
+      nombre+': '+mensaje.slice(0,150)
+    );
     input.value = '';
     await cargar();
   };
