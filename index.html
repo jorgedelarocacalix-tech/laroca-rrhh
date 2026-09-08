@@ -1414,6 +1414,11 @@ async function pollTick(){
   _pollBusy=false;
 }
 setInterval(pollTick, POLL_MS);
+// El poll se salta mientras la pestaña está oculta (document.hidden), y en móvil el
+// setInterval de una pestaña en segundo plano puede quedar suspendido mucho más de 20s.
+// Al volver a primer plano forzamos un chequeo inmediato para no dejar el estado stale.
+document.addEventListener('visibilitychange', () => { if(!document.hidden) pollTick(); });
+window.addEventListener('focus', pollTick);
 
 /* ============ RENDER ROUTER ============ */
 async function render(){
