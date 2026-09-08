@@ -1259,15 +1259,19 @@ function accesosAppsBuilder(prefix, accesos){
   accesos = accesos || {};
   const sucs = Array.isArray(accesos.sucursales) ? accesos.sucursales : [];
   const rolArq = accesos.arqueos_rol || '';
+  const rowStyle='display:flex;align-items:center;gap:10px;padding:11px 10px;border-bottom:1px solid var(--stone-line);cursor:pointer;font-size:14px;font-weight:500';
+  const lastRow=' border-bottom:none';
+  const chkStyle='flex:0 0 auto;width:18px;height:18px;margin:0';
+  const listBox='border:1px solid var(--stone-line);border-radius:6px;overflow:hidden';
   return `<label>Acceso a apps (Suite)</label>
-    <div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 0 2px">
-      ${APPS_SUITE.map(([k,label])=>`<label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;flex:0 0 auto">
-        <input type="checkbox" id="${prefix}-${k}" style="flex:0 0 auto" ${accesos[k]?'checked':''}> ${label}</label>`).join('')}
+    <div style="${listBox};margin-bottom:4px">
+      ${APPS_SUITE.map(([k,label],i)=>`<label style="${rowStyle}${i===APPS_SUITE.length-1?lastRow:''}">
+        <input type="checkbox" id="${prefix}-${k}" style="${chkStyle}" ${accesos[k]?'checked':''}><span>${label}</span></label>`).join('')}
     </div>
-    <div style="margin-top:10px"><label style="display:block;font-size:12px;color:var(--slate)">Sucursales asignadas — filtran lo que ve en Cierre, Equipos y Arqueos</label>
-      <div style="display:flex;flex-wrap:wrap;gap:12px;padding:6px 0 0">
-        ${SUCS_SUITE.map(([v,l])=>`<label style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;flex:0 0 auto">
-          <input type="checkbox" class="${prefix}-suc" value="${v}" style="flex:0 0 auto" ${sucs.includes(v)?'checked':''}> ${l}</label>`).join('')}
+    <div style="margin-top:14px"><label style="display:block;font-size:12px;color:var(--slate);margin-bottom:4px">Sucursales asignadas — filtran lo que ve en Cierre, Equipos y Arqueos</label>
+      <div style="${listBox}">
+        ${SUCS_SUITE.map(([v,l],i)=>`<label style="${rowStyle}${i===SUCS_SUITE.length-1?lastRow:''}">
+          <input type="checkbox" class="${prefix}-suc" value="${v}" style="${chkStyle}" ${sucs.includes(v)?'checked':''}><span>${l}</span></label>`).join('')}
       </div></div>
     <div style="margin-top:10px"><label style="display:block;font-size:12px;color:var(--slate)">Rol en Arqueos</label>
       <select id="${prefix}-arqrol" class="input" style="width:100%">
